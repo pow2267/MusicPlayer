@@ -11,8 +11,8 @@ import AVFoundation
 class ViewController: UIViewController, AVAudioPlayerDelegate {
 
     // MARK:- Properties
-    var player: AVAudioPlayer!
-    var timer: Timer!
+    var player: AVAudioPlayer?
+    var timer: Timer?
     
     // MARK: IBOutlets
     @IBOutlet var playPauseButton: UIButton!
@@ -22,7 +22,6 @@ class ViewController: UIViewController, AVAudioPlayerDelegate {
     // MARK: Life Cycle
     override func viewDidLoad() {
         super.viewDidLoad()
-        // self.addViewsWithCode()
         self.initializePlayer()
     }
 
@@ -36,144 +35,77 @@ class ViewController: UIViewController, AVAudioPlayerDelegate {
         
         do {
             try self.player = AVAudioPlayer(data: soundAsset.data)
-            self.player.delegate = self
+            self.player?.delegate = self
         } catch let error as NSError {
             print("플레이어 초기화 실패")
             print("코드 : \(error.code), 메세지 : \(error.localizedDescription)")
         }
         
-        self.progressSlider.maximumValue = Float(self.player.duration)
+        guard let audioPlayer = self.player else {
+            print("오디오 플레이어를 찾을 수 없습니다.")
+            return
+        }
+        
+        self.progressSlider.maximumValue = Float(audioPlayer.duration)
         self.progressSlider.minimumValue = 0
-        self.progressSlider.value = Float(self.player.currentTime)
+        self.progressSlider.value = Float(audioPlayer.currentTime)
     }
     
     func updateTimeLabelText(time: TimeInterval) {
-        let minute: Int = Int(time / 60)
-        let second: Int = Int(time.truncatingRemainder(dividingBy: 60))
-        let milisecond: Int = Int(time.truncatingRemainder(dividingBy: 1) * 100)
+        let minute = Int(time / 60)
+        let second = Int(time.truncatingRemainder(dividingBy: 60))
+        let milisecond = Int(time.truncatingRemainder(dividingBy: 1) * 100)
         
-        let timeText: String = String(format: "%02ld:%02ld:%02ld", minute, second, milisecond)
+        let timeText = String(format: "%02ld:%02ld:%02ld", minute, second, milisecond)
         
         self.timeLabel.text = timeText
     }
     
     func makeAndFireTimer() {
+        guard let audioPlayer = self.player else {
+            print("오디오 플레이어를 찾을 수 없습니다.")
+            return
+        }
+        
         self.timer = Timer.scheduledTimer(withTimeInterval: 0.01, repeats: true, block: { [unowned self] (timer: Timer) in
           
             if self.progressSlider.isTracking { return }
             
-            self.updateTimeLabelText(time: self.player.currentTime)
-            self.progressSlider.value = Float(self.player.currentTime)
+            self.updateTimeLabelText(time: audioPlayer.currentTime)
+            self.progressSlider.value = Float(audioPlayer.currentTime)
         })
         
-        self.timer.fire()
+        guard let audioTimer = self.timer else {
+            print("타이머를 찾을 수 없습니다.")
+            return
+        }
+        
+        audioTimer.fire()
     }
     
     func invalidateTimer() {
-        self.timer.invalidate()
+        guard self.timer != nil else {
+            print("타이머를 찾을 수 없습니다.")
+            return
+        }
+        
+        self.timer?.invalidate()
         self.timer = nil
-    }
-    
-    func addViewsWithCode() {
-        self.addPlayPauseButton()
-        self.addTimeLabel()
-        self.addProgressSlider()
-    }
-    
-    func addPlayPauseButton() {
-        let button: UIButton = UIButton(type: UIButton.ButtonType.custom)
-        button.translatesAutoresizingMaskIntoConstraints = false
-        
-        self.view.addSubview(button)
-        
-        button.setImage(UIImage(named: "button_play"), for: UIControl.State.normal)
-        button.setImage(UIImage(named: "button_pause"), for: UIControl.State.selected)
-        
-        button.addTarget(self, action: #selector(self.touchUpPlayPauseButton(_:)), for: UIControl.Event.touchUpInside)
-        
-        let centerX: NSLayoutConstraint
-        centerX = button.centerXAnchor.constraint(equalTo: self.view.centerXAnchor)
-        
-        let centerY: NSLayoutConstraint
-        centerY = NSLayoutConstraint(item: button, attribute: NSLayoutConstraint.Attribute.centerY, relatedBy: NSLayoutConstraint.Relation.equal, toItem: self.view, attribute: NSLayoutConstraint.Attribute.centerY, multiplier: 0.8, constant: 0)
-        
-        let width: NSLayoutConstraint
-        width = button.widthAnchor.constraint(equalTo: self.view.widthAnchor, multiplier: 0.5)
-        
-        let ratio: NSLayoutConstraint
-        ratio = button.heightAnchor.constraint(equalTo: button.widthAnchor, multiplier: 1)
-        
-        centerX.isActive = true
-        centerY.isActive = true
-        width.isActive = true
-        ratio.isActive = true
-        
-        self.playPauseButton = button
-    }
-    
-    func addTimeLabel() {
-        let timeLabel: UILabel = UILabel()
-        timeLabel.translatesAutoresizingMaskIntoConstraints = false
-        
-        self.view.addSubview(timeLabel)
-        
-        timeLabel.textColor = UIColor.black
-        timeLabel.textAlignment = NSTextAlignment.center
-        timeLabel.font = UIFont.preferredFont(forTextStyle: UIFont.TextStyle.headline)
-        
-        let centerX: NSLayoutConstraint
-        centerX = timeLabel.centerXAnchor.constraint(equalTo: self.playPauseButton.centerXAnchor)
-        
-        let top: NSLayoutConstraint
-        top = timeLabel.topAnchor.constraint(equalTo: self.playPauseButton.bottomAnchor, constant: 8)
-        
-        centerX.isActive = true
-        top.isActive = true
-        
-        self.timeLabel = timeLabel
-        self.updateTimeLabelText(time: 0)
-    }
-    
-    func addProgressSlider() {
-        let slider: UISlider = UISlider()
-        slider.translatesAutoresizingMaskIntoConstraints = false
-        
-        self.view.addSubview(slider)
-        
-        slider.minimumTrackTintColor = UIColor.red
-        
-        slider.addTarget(self, action: #selector(self.sliderValueChanged(_:)), for: UIControl.Event.valueChanged)
-        
-        let safeAreaGuide: UILayoutGuide = self.view.safeAreaLayoutGuide
-        
-        let centerX: NSLayoutConstraint
-        centerX = slider.centerXAnchor.constraint(equalTo: self.timeLabel.centerXAnchor)
-        
-        let top: NSLayoutConstraint
-        top = slider.topAnchor.constraint(equalTo: self.timeLabel.bottomAnchor, constant: 8)
-        
-        let leading: NSLayoutConstraint
-        leading = slider.leadingAnchor.constraint(equalTo: safeAreaGuide.leadingAnchor, constant: 16)
-        
-        let trailing: NSLayoutConstraint
-        trailing = slider.trailingAnchor.constraint(equalTo: safeAreaGuide.trailingAnchor, constant: -16)
-        
-        centerX.isActive = true
-        top.isActive = true
-        leading.isActive = true
-        trailing.isActive = true
-        
-        self.progressSlider = slider
     }
     
     // MARK: IBActions
     @IBAction func touchUpPlayPauseButton(_ sender: UIButton) {
         sender.isSelected = !sender.isSelected
         
+        guard let audioPlayer = self.player else {
+            print("오디오 플레이어를 찾을 수 없습니다.")
+            return
+        }
+        
         if sender.isSelected {
-            self.player?.play()
+            audioPlayer.play()
         } else {
-            self.player?.pause()
+            audioPlayer.pause()
         }
         
         if sender.isSelected {
@@ -186,7 +118,13 @@ class ViewController: UIViewController, AVAudioPlayerDelegate {
     @IBAction func sliderValueChanged(_ sender: UISlider) {
         self.updateTimeLabelText(time: TimeInterval(sender.value))
         if sender.isTracking { return }
-        self.player.currentTime = TimeInterval(sender.value)
+        
+        guard let audioPlayer = self.player else {
+            print("오디오 플레이어를 찾을 수 없습니다.")
+            return
+        }
+        
+        audioPlayer.currentTime = TimeInterval(sender.value)
     }
     
     // MARK: AVAudioPlayerDelegate
@@ -196,8 +134,7 @@ class ViewController: UIViewController, AVAudioPlayerDelegate {
             return
         }
         
-        let message: String
-        message = "오디오 플레이어 오류 발생 \(error.localizedDescription)"
+        let message = "오디오 플레이어 오류 발생 \(error.localizedDescription)"
         
         let alert: UIAlertController = UIAlertController(title: "알림", message: message, preferredStyle: UIAlertController.Style.alert)
         
